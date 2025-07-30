@@ -15,23 +15,27 @@ export const createUserAbortedError = (requestId?: string): CallToolResult =>
   });
 
 export const createTimeoutError = (
-  timeoutMs: number,
+  timeoutMs: number | null,
   requestId?: string
-): CallToolResult =>
-  formatMCPError(new Error(`Operation timed out after ${timeoutMs}ms`), {
+): CallToolResult => {
+  const timeout = timeoutMs || 'unknown';
+  return formatMCPError(new Error(`Operation timed out after ${timeout}ms`), {
     errorType: ErrorType.TIMEOUT,
-    title: `Request timed out after ${timeoutMs}ms`,
+    title: `Request timed out after ${timeout}ms`,
     detail: 'The operation took too long to complete',
     requestId,
   });
+};
 
 export const createNetworkError = (
-  originalError: Error,
+  originalError: any,
   requestId?: string
-): CallToolResult =>
-  formatMCPError(originalError, {
+): CallToolResult => {
+  const errorMessage = originalError?.message || 'Unknown network error';
+  return formatMCPError(originalError || new Error(errorMessage), {
     errorType: ErrorType.NETWORK_ERROR,
     title: 'Network connection failed',
-    detail: `Failed to establish connection: ${originalError.message}`,
+    detail: `Failed to establish connection: ${errorMessage}`,
     requestId,
   });
+};
