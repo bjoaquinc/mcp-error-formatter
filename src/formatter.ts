@@ -37,14 +37,19 @@ export function formatMCPError(
     isExpected: safeOptions.isExpected ?? errorType === ErrorType.USER_ABORTED,
   };
 
-  // Format exactly like Cursor
+  // Build structured content (either user-provided or auto-generated)
+  const rawStructuredContent = buildStructuredContent(formattedError, safeOptions);
+  const structuredContent = createSafeStructuredContent(rawStructuredContent);
+
+  // Format text exactly like current Cursor style (UNCHANGED)
   const cursorStyleText = formatCursorStyle(
     requestId,
     formattedError,
     normalizedError
   );
 
-  return {
+  // Return enhanced result with optional structuredContent
+  const result: CallToolResult = {
     isError: true,
     content: [
       {
@@ -53,6 +58,47 @@ export function formatMCPError(
       },
     ],
   };
+
+  // Add structuredContent only if it was successfully created
+  if (structuredContent) {
+    result.structuredContent = structuredContent;
+  }
+
+  return result;
+}
+
+function buildStructuredContent(
+  formattedError: FormattedError,
+  options: FormatOptions
+): Record<string, unknown> {
+  // If user provided explicit structured content, use it
+  if (options.structured) {
+    return options.structured;
+  }
+
+  // Auto-generate structured content from formattedError
+  return {
+    errorType: formattedError.error,
+    title: formattedError.details.title,
+    detail: formattedError.details.detail,
+    retryable: formattedError.details.isRetryable,
+    expected: formattedError.isExpected,
+    info: formattedError.details.additionalInfo,
+  };
+}
+
+function createSafeStructuredContent(
+  structuredContent: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  try {
+    // Test if the object can be serialized (detect circular refs)
+    JSON.stringify(structuredContent);
+    return structuredContent;
+  } catch {
+    // If structured content has circular refs or other issues,
+    // return undefined to fall back to text-only mode
+    return undefined;
+  }
 }
 
 function normalizeError(error: any): {

@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.0] - 2024-12-19
+
+### Added
+- **NEW**: `structuredContent` field in `CallToolResult` for modern MCP clients
+- **NEW**: `structured` option in `FormatOptions` for explicit structured content override
+- Auto-generation of structured content when not explicitly provided
+- Safe handling of circular references in structured content with graceful fallback
+- Dual-format error output: machine-readable JSON + human-readable text
+
+### Changed
+- Extended `CallToolResult` interface with optional `structuredContent` field
+- Extended `FormatOptions` interface with optional `structured` field for custom payloads
+- Enhanced all helper functions (`createUserAbortedError`, `createTimeoutError`, `createNetworkError`) to include structured content
+
+### Enhanced
+- Comprehensive test coverage with 37 test cases (up from 30)
+- Updated documentation with structured content examples and API reference
+- Improved developer experience with rich JSON for modern clients
+
+### Backward Compatibility
+- **BREAKING**: None - 100% backward compatible
+- Text output format remains identical to v1.0.1
+- All existing APIs unchanged and fully preserved
+- Legacy clients see no difference in behavior
+- Existing code works without modification
+
+### Technical Details
+- Zero additional runtime dependencies
+- Type-safe implementation with full TypeScript support
+- Automatic error type detection preserved
+- Request ID generation unchanged
+- Stack trace formatting identical
+
+## [1.0.1] - Previous Release
+
+### Fixed
+- Various bug fixes and improvements
+- Improved error handling edge cases
+
+## [1.0.0] - Initial Release
+
+### Added
+- Initial implementation of MCP error formatting
+- Auto-detection of error types (timeout, network, user aborted, etc.)
+- Request ID generation for error tracing
+- Helper functions for common error scenarios
+- Cursor-style text output formatting
+- TypeScript support with full type definitions 

@@ -1,178 +1,164 @@
 # MCP Error Formatter
 
-Format MCP tool errors exactly like Cursor's style for better LLM understanding.
+mcp‑error‑formatter is a lightweight npm package designed to **standardize error formatting for Model Context Protocol (MCP) tool calls**, inspired by Cursor's clean and LLM‑friendly approach. If you've built MCP servers for LLM integrations and struggled with cryptic error messages that confuse models or hinder debugging, this utility simplifies the process by transforming JavaScript `Error`s into structured `CallToolResult` objects. It auto‑detects error types (timeouts, user aborts, network faults), tags each error with a request‑ID for easy tracing, and sets flags such as `isRetryable` so LLMs (and agents) can behave intelligently—reducing vague "something went wrong" outputs and speeding up development. With **zero runtime dependencies beyond `uuid`** and seamless compatibility with the official MCP SDK, FastMCP, or bare JSON‑RPC servers, it's a drop‑in upgrade that makes your MCP tools more robust and user‑friendly.
+
+---
 
 ## Installation
+
 ```bash
-npm install mcp-error-formatter
+npm install @bjoaquinc/mcp-error-formatter
 ```
 
 ## Usage
 
 ### Basic Usage
-```javascript
-import { formatMCPError } from 'mcp-error-formatter';
 
-// Simple error formatting
-export async function myTool(args) {
+```typescript
+import { formatMCPError } from "@bjoaquinc/mcp-error-formatter";
+
+export async function myTool(_args) {
   try {
     const result = await someOperation();
     return { content: [{ type: "text", text: result }] };
-  } catch (error) {
-    return formatMCPError(error, {
-      title: "Operation failed",
-      detail: "Something went wrong"
-    });
+  } catch (err) {
+    // Minimum call – auto‑detects type, adds requestId, structuredContent
+    return formatMCPError(err, { title: "Operation failed" });
   }
 }
 ```
 
-### Advanced Usage with Options
-```javascript
-import { formatMCPError, ErrorType } from 'mcp-error-formatter';
+### Advanced Usage (structuredContent override)
 
-// Network error with retry logic
+```typescript
+import { formatMCPError, ErrorType } from "@bjoaquinc/mcp-error-formatter";
+
 export async function githubTool(args) {
   try {
-    const result = await github.api.repos.get(args.repo);
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
-  } catch (error) {
-    return formatMCPError(error, {
+    const res = await github.api.repos.get(args.repo);
+    return { content: [{ type: "text", text: JSON.stringify(res) }] };
+  } catch (err) {
+    return formatMCPError(err, {
       title: "GitHub API request failed",
       detail: `Failed to fetch repository: ${args.repo}`,
       errorType: ErrorType.NETWORK_ERROR,
-      isRetryable: true, // This error can be retried
-      isExpected: false, // This is an unexpected error
+      isRetryable: true,
       additionalInfo: {
         repo: args.repo,
-        statusCode: error.status,
-        rateLimitRemaining: error.headers?.['x-ratelimit-remaining'],
-        suggestion: "Check your network connection and GitHub API limits"
+        statusCode: err.status,
+        rateLimitRemaining: err.headers?.["x-ratelimit-remaining"]
+      },
+      // NEW — full structured payload override (optional)
+      structured: {
+        service: "github",
+        repo: args.repo,
+        statusCode: err.status,
+        retryable: true
       }
     });
   }
 }
+```
 
-// Expected user cancellation
-export async function longRunningTool(args) {
-  try {
-    const result = await performLongOperation(args);
-    return { content: [{ type: "text", text: result }] };
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      return formatMCPError(error, {
-        title: "Operation cancelled",
-        detail: "User cancelled the long-running operation",
-        errorType: ErrorType.USER_ABORTED,
-        isRetryable: false, // User cancellations shouldn't be retried
-        isExpected: true,   // This is an expected behavior
-        additionalInfo: {
-          operationDuration: Date.now() - error.startTime,
-          completionPercentage: error.progress || 0
-        }
-      });
+---
+
+## Response / Return Values
+
+`formatMCPError()` always returns a **valid MCP `CallToolResult`** with the following structure:
+
+```jsonc
+{
+  "isError": true,
+  "structuredContent": {         // ⇠ JSON object (auto‑generated or your override)
+    "errorType": "ERROR_NETWORK_ERROR",
+    "title": "GitHub API request failed",
+    "detail": "...",
+    "retryable": true,
+    "expected": false,
+    "info": { "statusCode": 503 }
+  },
+  "content": [                   // ⇠ Legacy/LLM‑friendly text block
+    {
+      "type": "text",
+      "text": "Request ID: 4de1...\\n{...same JSON...}\\nError: ...\\n  at ..."
     }
-    return formatMCPError(error);
-  }
-}
-
-// Validation error with detailed info
-export async function validateDataTool(args) {
-  try {
-    const validatedData = validateInput(args.data);
-    return { content: [{ type: "text", text: "Data is valid" }] };
-  } catch (error) {
-    return formatMCPError(error, {
-      title: "Data validation failed",
-      detail: "The provided data does not meet requirements",
-      errorType: ErrorType.INVALID_INPUT,
-      isRetryable: false, // Invalid input won't be fixed by retrying
-      isExpected: true,   // Validation failures are expected
-      additionalInfo: {
-        validationErrors: error.validationErrors,
-        providedFields: Object.keys(args.data),
-        requiredFields: error.requiredFields,
-        suggestion: "Please check the data format and try again"
-      }
-    });
-  }
+  ]
 }
 ```
 
-## Output Format
+* **`structuredContent`** – machine‑readable JSON for modern clients.
+* **`content`** – single text item duplicating the JSON plus full stack trace for Cursor & other UIs.
 
-### Basic Error Output
-Creates Cursor-style error output:
-```
-Request ID: c90ead25-5c07-4f28-a972-baa17ddb6eaa
-{"error":"ERROR_NETWORK_ERROR","details":{"title":"GitHub API Error","detail":"Failed to fetch repository","isRetryable":true,"additionalInfo":{}},"isExpected":false}
-Error: Failed to fetch repository
-    at githubTool (/path/to/file.js:10:15)
-    ...
-```
+---
 
-### Enhanced Error Output with Options
-With `isRetryable`, `isExpected`, and `additionalInfo`:
-```
-Request ID: b12f8c45-9d3e-4a67-8f1b-2c9e6d4a8b7f
-{"error":"ERROR_NETWORK_ERROR","details":{"title":"GitHub API request failed","detail":"Failed to fetch repository: microsoft/vscode","isRetryable":true,"additionalInfo":{"repo":"microsoft/vscode","statusCode":503,"rateLimitRemaining":"0","suggestion":"Check your network connection and GitHub API limits"}},"isExpected":false}
-Error: Request failed with status code 503
-    at githubTool (/path/to/file.js:10:15)
-    ...
-```
+## API Overview
 
-### User Cancellation Example
-```
-Request ID: f7e9d2a1-4b6c-8e3f-9a2d-1c8b5e7f4a9b
-{"error":"ERROR_USER_ABORTED_REQUEST","details":{"title":"Operation cancelled","detail":"User cancelled the long-running operation","isRetryable":false,"additionalInfo":{"operationDuration":15420,"completionPercentage":65}},"isExpected":true}
-Error: User aborted request
-    at longRunningTool (/path/to/file.js:25:12)
-    ...
-```
+| Function                                        | Description                                             |
+| ----------------------------------------------- | ------------------------------------------------------- |
+| **`formatMCPError(error, options?)`**           | Convert any `Error` into a structured `CallToolResult`. |
+| **`createUserAbortedError(requestId?)`**        | Convenience: pre‑built user‑cancelled error.            |
+| **`createTimeoutError(timeoutMs, requestId?)`** | Convenience: pre‑built timeout error.                   |
+| **`createNetworkError(error, requestId?)`**     | Convenience: wraps fetch/axios errors.                  |
 
-## API
+### `FormatOptions`
 
-### Main Functions
-- `formatMCPError(error, options?)` - Main formatting function
-- `createUserAbortedError(requestId?)` - User cancellation
-- `createTimeoutError(timeoutMs, requestId?)` - Timeout errors  
-- `createNetworkError(error, requestId?)` - Network failures
-
-### FormatOptions Interface
 ```typescript
 interface FormatOptions {
-  title?: string;           // Custom error title (defaults to error.name)
-  detail?: string;          // Custom error detail (defaults to error.message)
-  requestId?: string;       // Custom request ID (defaults to generated UUID)
-  errorType?: ErrorType;    // Override auto-detected error type
-  isRetryable?: boolean;    // Whether the operation can be retried
-  isExpected?: boolean;     // Whether this error is expected behavior
-  additionalInfo?: Record<string, any>; // Extra context data
+  title?: string;
+  detail?: string;
+  requestId?: string;                 // Defaults to uuid.v4()
+  errorType?: ErrorType;              // Auto‑detected if omitted
+  isRetryable?: boolean;
+  isExpected?: boolean;
+  additionalInfo?: Record<string, any>;
+  structured?: Record<string, unknown>; // NEW: full override of structuredContent
 }
 ```
 
-### Error Types
+### `ErrorType`
+
 ```typescript
 enum ErrorType {
-  USER_ABORTED = "ERROR_USER_ABORTED_REQUEST",
-  TIMEOUT = "ERROR_TIMEOUT",
-  NETWORK_ERROR = "ERROR_NETWORK_ERROR", 
+  USER_ABORTED   = "ERROR_USER_ABORTED_REQUEST",
+  TIMEOUT        = "ERROR_TIMEOUT",
+  NETWORK_ERROR  = "ERROR_NETWORK_ERROR",
   INTERNAL_ERROR = "ERROR_INTERNAL_ERROR",
-  INVALID_INPUT = "ERROR_INVALID_INPUT"
+  INVALID_INPUT  = "ERROR_INVALID_INPUT"
 }
 ```
 
-### When to Use Each Option
+---
 
-**`isRetryable`**
-- `true`: Network errors, timeouts, rate limits
-- `false`: Validation errors, user cancellations, authorization failures
+## Output Examples
 
-**`isExpected`** 
-- `true`: User cancellations, validation failures, known business logic errors
-- `false`: Unexpected system errors, network failures, bugs
+<details>
+<summary>Default (auto‑generated structuredContent)</summary>
 
-**`additionalInfo`**
-- Include relevant context: user input, error codes, suggestions
-- Help LLMs understand the error and provide better responses
-- Examples: API status codes, validation details, operation progress 
+```
+Request ID: 4de16c8d‑...‑6a9c
+{"errorType":"ERROR_NETWORK_ERROR","title":"GitHub API request failed","detail":"Failed to fetch repository","retryable":true,"expected":false,"info":{"statusCode":503}}
+Error: Request failed with status code 503
+    at githubTool (/path/to/file.js:12:18)
+    ...
+```
+
+</details>
+
+<details>
+<summary>Custom structuredContent override</summary>
+
+```
+Request ID: 2f3a08e1‑...‑d212
+{"service":"github","repo":"octocat/Hello-World","statusCode":503,"retryable":true}
+Error: Request failed with status code 503
+    at githubTool (/path/to/file.js:12:18)
+    ...
+```
+
+</details>
+
+---
+
+**That's it!** Drop `formatMCPError` into any MCP tool, get rich JSON for agents and readable stacks for humans—no extra setup required.
+
+ 

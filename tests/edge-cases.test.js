@@ -312,6 +312,10 @@ describe('MCP Error Formatter - Edge Cases', () => {
         expect(text).toMatch(/Request ID: [0-9a-f-]{36}/); // UUID pattern
         expect(text).toContain('{"error":"ERROR_');
         expect(text).toContain('Error:');
+
+        // Check structured content is now included
+        expect(result).toHaveProperty('structuredContent');
+        expect(typeof result.structuredContent).toBe('object');
       });
     });
 
@@ -326,6 +330,52 @@ describe('MCP Error Formatter - Edge Cases', () => {
       const jsonLine = lines.find((line) => line.startsWith('{"error":'));
 
       expect(() => JSON.parse(jsonLine)).not.toThrow();
+    });
+  });
+
+  describe('Structured content edge cases', () => {
+    test('helper functions include structured content', () => {
+      const abortResult = createUserAbortedError('test-id');
+      const timeoutResult = createTimeoutError(5000, 'timeout-id');
+      const networkResult = createNetworkError(
+        new Error('Connection failed'),
+        'network-id',
+      );
+
+      [abortResult, timeoutResult, networkResult].forEach((result) => {
+        expect(result.structuredContent).toBeDefined();
+        expect(typeof result.structuredContent).toBe('object');
+        expect(result.content[0].text).toContain('Request ID:');
+      });
+    });
+
+    test('structured content is serializable', () => {
+      const result = formatMCPError(new Error('Test'), {
+        additionalInfo: {
+          array: [1, 2, 3],
+          nested: { deep: { value: 'test' } },
+          nullValue: null,
+        },
+      });
+
+      expect(() => JSON.stringify(result.structuredContent)).not.toThrow();
+    });
+
+    test('structured content fallback with complex circular references', () => {
+      const error = new Error('Complex circular test');
+      const complexCircular = {
+        level1: { level2: { level3: {} } },
+        array: [{ item: {} }],
+      };
+      complexCircular.level1.level2.level3.back = complexCircular;
+      complexCircular.array[0].item.circular = complexCircular.array;
+
+      const result = formatMCPError(error, {
+        structured: complexCircular,
+      });
+
+      expect(result.structuredContent).toBeUndefined();
+      expect(result.content[0].text).toContain('Complex circular test');
     });
   });
 });

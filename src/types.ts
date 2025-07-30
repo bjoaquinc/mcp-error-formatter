@@ -27,9 +27,11 @@ export interface FormatOptions {
   isRetryable?: boolean;
   isExpected?: boolean;
   additionalInfo?: Record<string, any>;
+  structured?: Record<string, unknown>;
 }
 
 export interface CallToolResult {
   isError: true;
   content: Array<{ type: 'text'; text: string }>;
+  structuredContent?: Record<string, unknown>;
 }
