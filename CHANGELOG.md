@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2024-12-19
+
+### Added
+- GitHub Packages publishing support in CI/CD workflow
+- Dual registry publishing: packages now published to both npm and GitHub Packages
+- Enhanced GitHub Actions workflow with parallel publishing jobs
+
+### Changed
+- Updated GitHub Actions workflow to publish to both npm registry and GitHub Packages registry
+- Added proper permissions for GitHub Packages publishing
+
+### Technical Details
+- Added `publish-github` job to workflow for GitHub Packages registry
+- Configured `npm.pkg.github.com` registry URL for GitHub publishing
+- Uses `GITHUB_TOKEN` for GitHub Packages authentication
+- Maintains backward compatibility with existing npm publishing
+
 ## [1.1.1] - 2024-12-19
 
 ### Added
