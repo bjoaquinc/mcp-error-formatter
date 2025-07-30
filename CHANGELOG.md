@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.4] - 2024-12-19
-
 ### Fixed
 - CI/CD workflow test failures due to incorrect build order
 - Tests now run after TypeScript compilation, not before
