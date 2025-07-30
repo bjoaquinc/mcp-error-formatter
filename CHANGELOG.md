@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2024-12-19
+
+### Fixed
+- GitHub Packages publishing configuration and authentication
+- Enhanced workflow with explicit registry configuration for dual publishing
+- Added proper scope mapping for GitHub Packages registry
+- Added `publishConfig` with public access for both registries
+
+### Changed
+- Improved CI/CD workflow with explicit npm registry configuration
+- Enhanced GitHub Packages publishing job with proper scope setup
+- Added registry-specific configuration steps to prevent publishing conflicts
+
 ## [1.1.2] - 2024-12-19
 
 ### Added
