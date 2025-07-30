@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2024-12-19
+
+### Fixed
+- CI/CD workflow test failures due to incorrect build order
+- Tests now run after TypeScript compilation, not before
+- Fixed `prepublishOnly` script order to build before testing
+- Resolved "Cannot find module '../dist'" errors in test suite
+
+### Changed
+- GitHub Actions workflow now runs: build → lint → test (was: lint → test → build)
+- Package.json `prepublishOnly` script now runs: build → test (was: test → build)
+
 ## [1.1.3] - 2024-12-19
 
 ### Fixed
