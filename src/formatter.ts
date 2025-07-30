@@ -12,7 +12,7 @@ export function formatMCPError(
 ): CallToolResult {
   // Safely handle null/undefined options
   const safeOptions = options || {};
-  
+
   // Generate request ID
   const requestId = safeOptions.requestId || uuidv4();
 
@@ -27,7 +27,10 @@ export function formatMCPError(
     error: errorType,
     details: {
       title: safeOptions.title || normalizedError.name || 'Error occurred',
-      detail: safeOptions.detail || normalizedError.message || 'An unexpected error occurred',
+      detail:
+        safeOptions.detail ||
+        normalizedError.message ||
+        'An unexpected error occurred',
       isRetryable: safeOptions.isRetryable ?? isRetryableError(errorType),
       additionalInfo: safeOptions.additionalInfo || {},
     },
@@ -35,7 +38,11 @@ export function formatMCPError(
   };
 
   // Format exactly like Cursor
-  const cursorStyleText = formatCursorStyle(requestId, formattedError, normalizedError);
+  const cursorStyleText = formatCursorStyle(
+    requestId,
+    formattedError,
+    normalizedError
+  );
 
   return {
     isError: true,
@@ -48,7 +55,11 @@ export function formatMCPError(
   };
 }
 
-function normalizeError(error: any): { name: string; message: string; stack?: string } {
+function normalizeError(error: any): {
+  name: string;
+  message: string;
+  stack?: string;
+} {
   // Handle null/undefined
   if (error === null || error === undefined) {
     return {
@@ -124,34 +135,51 @@ function formatCursorStyle(
 function safeJsonStringify(obj: any): string {
   try {
     return JSON.stringify(obj, null, 0);
-  } catch (error) {
+  } catch {
     // Handle circular references by using a replacer
     const seen = new WeakSet();
-    return JSON.stringify(obj, (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) {
-          return '[Circular Reference]';
+    return JSON.stringify(
+      obj,
+      (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular Reference]';
+          }
+          seen.add(value);
         }
-        seen.add(value);
-      }
-      return value;
-    }, 0);
+        return value;
+      },
+      0
+    );
   }
 }
 
-function formatStackTrace(error: { name: string; message: string; stack?: string }): string {
+function formatStackTrace(error: {
+  name: string;
+  message: string;
+  stack?: string;
+}): string {
   if (!error.stack) {
     return `${error.name}: ${error.message}`;
   }
   return error.stack;
 }
 
-function detectErrorType(error: { name: string; message: string; stack?: string }): ErrorType {
+function detectErrorType(error: {
+  name: string;
+  message: string;
+  stack?: string;
+}): ErrorType {
   const message = (error.message || '').toLowerCase();
   const name = (error.name || '').toLowerCase();
 
   // Check timeout patterns first (before abort) since some timeout messages contain "abort"
-  if (name.includes('timeout') || message.includes('timeout') || message.includes('timed out') || message.includes('etimedout')) {
+  if (
+    name.includes('timeout') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('etimedout')
+  ) {
     return ErrorType.TIMEOUT;
   }
   if (name.includes('abort') || message.includes('abort')) {

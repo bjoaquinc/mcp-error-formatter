@@ -6,3 +6,6 @@ dist/
 .env.local
 coverage/
 *.tgz 
+
+# Planning files for Cursor
+*_PLAN.md
