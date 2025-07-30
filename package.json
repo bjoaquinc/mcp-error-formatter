@@ -1,5 +1,5 @@
 {
-  "name": "mcp-error-formatter",
+  "name": "@bjoaquinc/mcp-error-formatter",
   "version": "1.0.0",
   "description": "Simple utility to format MCP tool errors like Cursor",
   "main": "dist/index.js",
@@ -10,7 +10,6 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-
     "prepublishOnly": "npm run test && npm run build"
   },
   "keywords": [
@@ -20,7 +19,7 @@
     "anthropic",
     "llm"
   ],
-  "author": "Your Name",
+  "author": "bjoaquinc",
   "license": "MIT",
   "dependencies": {
     "uuid": "^10.0.0"
